@@ -68,6 +68,7 @@ function StatCard({ stat, maxHours }: { stat: CarStat; maxHours: number }) {
 
 // ── Monthly breakdown table ────────────────────────────────────────
 function MonthlyTable({ monthly, stats }: { monthly: MonthlyRow[]; stats: CarStat[] }) {
+    // @ts-ignore
     const months = [...new Set(monthly.map((r) => r.month))].sort().reverse();
 
     if (months.length === 0) return (

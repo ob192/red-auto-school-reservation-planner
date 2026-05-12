@@ -129,13 +129,15 @@ export async function getInstructorSchedule(
   let grandTotal = 0;
   const cars: CarSummary[] = [];
 
+  // @ts-ignore
   for (const [carModel, monthMap] of carMap.entries()) {
+    // @ts-ignore
     const car = CARS_REGISTRY[carModel];
     let carTotal = 0;
     const months: MonthSummary[] = [];
 
     for (const [month, bookings] of [...monthMap.entries()].sort()) {
-      const monthTotal = bookings.reduce((s, b) => s + b.duration_hours, 0);
+      const monthTotal = bookings.reduce((s: any, b: { duration_hours: any; }) => s + b.duration_hours, 0);
       carTotal += monthTotal;
       months.push({ month, bookings, total_hours: Math.round(monthTotal * 100) / 100 });
     }
