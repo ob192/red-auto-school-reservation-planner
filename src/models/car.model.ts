@@ -1,14 +1,21 @@
-export const CAR_MODELS = ['MAZDA', 'KIA RIO', 'TOYOTA', 'MINI COOPER'] as const;
+export const CAR_MODELS = ['MINI COOPER', 'MAZDA', 'KIA RIO', 'TOYOTA'] as const;
 export type CarModel = (typeof CAR_MODELS)[number];
 
 export interface Car {
-  model: CarModel;
-  name: string;
-  color: string;
+  model:       CarModel;
+  name:        string;
+  color:       string;
   image_emoji: string;
+  plate?:      string;
 }
 
 export const CARS_REGISTRY: Record<CarModel, Car> = {
+  'MINI COOPER': {
+    model:       'MINI COOPER',
+    name:        'Mini Cooper',
+    color:       'Синя',
+    image_emoji: '🚓',
+  },
   'MAZDA': {
     model:       'MAZDA',
     name:        'Mazda 3',
@@ -20,18 +27,14 @@ export const CARS_REGISTRY: Record<CarModel, Car> = {
     name:        'Kia Rio',
     color:       'Біла',
     image_emoji: '🚙',
+    plate:       'СВ9942АС',
   },
   'TOYOTA': {
     model:       'TOYOTA',
-    name:        'Toyota Camry',
+    name:        'Toyota Corolla',
     color:       'Чорна',
     image_emoji: '🏎️',
-  },
-  'MINI COOPER': {
-    model:       'MINI COOPER',
-    name:        'Mini Cooper',
-    color:       'Синя',
-    image_emoji: '🚓',
+    plate:       'СВ9028ВА',
   },
 };
 
