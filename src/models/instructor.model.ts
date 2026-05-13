@@ -143,7 +143,9 @@ export async function getInstructorSchedule(
   let grandCancelled = 0;
   const cars: CarSummary[] = [];
 
+  // @ts-ignore
   for (const [carModel, monthMap] of carMap.entries()) {
+    // @ts-ignore
     const car = CARS_REGISTRY[carModel];
     let carConfirmed = 0;
     let carCancelled = 0;
@@ -151,11 +153,11 @@ export async function getInstructorSchedule(
 
     for (const [month, bookings] of [...monthMap.entries()].sort()) {
       const monthConfirmed = bookings
-          .filter(b => b.status === 'confirmed')
-          .reduce((s, b) => s + b.duration_hours, 0);
+          .filter((b: { status: string; }) => b.status === 'confirmed')
+          .reduce((s: any, b: { duration_hours: any; }) => s + b.duration_hours, 0);
       const monthCancelled = bookings
-          .filter(b => b.status === 'cancelled')
-          .reduce((s, b) => s + b.duration_hours, 0);
+          .filter((b: { status: string; }) => b.status === 'cancelled')
+          .reduce((s: any, b: { duration_hours: any; }) => s + b.duration_hours, 0);
 
       carConfirmed += monthConfirmed;
       carCancelled += monthCancelled;

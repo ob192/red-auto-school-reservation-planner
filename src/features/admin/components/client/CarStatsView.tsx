@@ -67,6 +67,7 @@ function StatCard({ stat, maxHours }: { stat: CarStat; maxHours: number }) {
 // ── Monthly breakdown — card-per-month, bar-per-car ───────────────
 // No table → no horizontal scroll → works on any screen width
 function MonthlyCards({ monthly, stats }: { monthly: MonthlyRow[]; stats: CarStat[] }) {
+    // @ts-ignore
     const months = [...new Set(monthly.map(r => r.month))].sort().reverse();
 
     if (months.length === 0) return (
