@@ -5,61 +5,27 @@ import { getInstructorSchedule } from '@/models/instructor.model';
 type Params = { params: Promise<{ name: string }> };
 
 /**
- * GET /api/instructor/:name
+ * GET /api/instructor/:name   (legacy — kept for backwards compat)
  *
- * Returns the full schedule for a single instructor, grouped by car → month,
- * mirroring the Python write_to_sheets logic.
- *
- * :name  — URL-encoded "Іваненко Петро" (last + space + first)
- *
- * Query params:
- *   from=YYYY-MM-DD   (optional, inclusive)
- *   to=YYYY-MM-DD     (optional, inclusive)
- *
- * Response 200:
- * {
- *   instructor: string,
- *   grand_total_hours: number,
- *   cars: [
- *     {
- *       car_name: string,
- *       total_hours: number,
- *       months: [
- *         {
- *           month: "YYYY-MM",
- *           total_hours: number,
- *           bookings: [
- *             {
- *               id, car_name, car_color,
- *               booking_date, start_time, end_time,
- *               duration_hours, status
- *             }
- *           ]
- *         }
- *       ]
- *     }
- *   ]
- * }
- *
- * Response 404: instructor has no bookings (or doesn't exist)
- *
- * Example:
- *   GET /api/instructor/%D0%86%D0%B2%D0%B0%D0%BD%D0%B5%D0%BD%D0%BA%D0%BE%20%D0%9F%D0%B5%D1%82%D1%80%D0%BE
- *   → /api/instructor/Іваненко Петро
+ * Prefer GET /api/instructor/schedule?name=… for new callers.
+ * Both routes share the same model function which now uses ILIKE,
+ * so Cyrillic names work correctly on all Postgres locales.
  */
 export async function GET(req: NextRequest, { params }: Params) {
   const user = await getAuthUser(req);
   if (!user) return Res.unauthorized();
 
   const { name } = await params;
-  const instructorName = decodeURIComponent(name);
+
+  // decodeURIComponent handles %20 spaces and full Cyrillic sequences
+  const instructorName = decodeURIComponent(name).trim();
 
   const { searchParams } = new URL(req.url);
   const fromDate = searchParams.get('from') ?? undefined;
-  const toDate = searchParams.get('to') ?? undefined;
+  const toDate   = searchParams.get('to')   ?? undefined;
 
   if (!instructorName.includes(' ')) {
-    return Res.badRequest('name must be "LastName FirstName" (space-separated)');
+    return Res.badRequest('name must be "Прізвище Ім\'я" (space-separated)');
   }
 
   try {

@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { DailySchedule } from '@/features/admin/components/client/DailySchedule';
+import { DailySchedule }     from '@/features/admin/components/client/DailySchedule';
 import { InstructorReports } from '@/features/admin/components/client/InstructorReports';
-import { CarStatsView } from '@/features/admin/components/client/CarStatsView';
+import { CarStatsView }      from '@/features/admin/components/client/CarStatsView';
 
 type Tab = 'schedule' | 'instructors' | 'stats';
 
@@ -18,22 +18,27 @@ export function AdminDashboard() {
 
     return (
         <div>
-            {/* Tabs */}
-            <div className="admin-tabs">
-                {TABS.map((t) => (
-                    <button
-                        key={t.id}
-                        className={`admin-tab ${tab === t.id ? 'admin-tab--active' : ''}`}
-                        onClick={() => setTab(t.id)}
-                        type="button"
-                    >
-                        <span>{t.icon}</span>
-                        <span>{t.label}</span>
-                    </button>
-                ))}
+            {/*
+              Outer wrapper scrolls horizontally on narrow phones.
+              Inner div uses nowrap so tabs stay on one line.
+              scrollbar-width:none hides the ugly scrollbar on Android Chrome.
+            */}
+            <div className="admin-tabs-scroller">
+                <div className="admin-tabs">
+                    {TABS.map((t) => (
+                        <button
+                            key={t.id}
+                            className={`admin-tab ${tab === t.id ? 'admin-tab--active' : ''}`}
+                            onClick={() => setTab(t.id)}
+                            type="button"
+                        >
+                            <span aria-hidden="true">{t.icon}</span>
+                            <span>{t.label}</span>
+                        </button>
+                    ))}
+                </div>
             </div>
 
-            {/* Tab content */}
             <div className="admin-tab-content">
                 {tab === 'schedule'    && <DailySchedule />}
                 {tab === 'instructors' && <InstructorReports />}

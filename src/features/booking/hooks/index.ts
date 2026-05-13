@@ -10,7 +10,7 @@ export function useCars() {
   return useQuery({
     queryKey: ['cars'],
     queryFn: (): Car[] => getAllCars(),
-    staleTime: Infinity, // never stale — hardcoded data
+    staleTime: Infinity,
   });
 }
 
@@ -40,6 +40,58 @@ export function useBookingsForDate(carModel: CarModel | null, date: string | nul
     },
     enabled: !!carModel && !!date,
     staleTime: 15_000,
+  });
+}
+
+// ── MONTHLY BOOKING COUNTS (for calendar heat-map) ────────────────
+//
+// Returns a map of  dateKey → count  for every car that has confirmed
+// bookings in the given calendar month, e.g.
+//   { "2024-11-04": 2, "2024-11-07": 1, ... }
+//
+// carModel = null  →  counts across ALL cars (used for the calendar
+//                     before a car is chosen, or to show total load).
+// carModel = "MAZDA" → counts only for that car.
+
+export type DayCounts = Record<string, number>; // "YYYY-MM-DD" → n
+
+export function useMonthlyBookingCounts(
+    carModel: CarModel | null | 'all',
+    year: number,
+    month: number          // 0-based, like JS Date.getMonth()
+) {
+  return useQuery({
+    queryKey: ['monthly-counts', carModel, year, month],
+    queryFn: async (): Promise<DayCounts> => {
+      const mm   = String(month + 1).padStart(2, '0');
+      const last = new Date(year, month + 1, 0).getDate();
+      const from = `${year}-${mm}-01`;
+      const to   = `${year}-${mm}-${String(last).padStart(2, '0')}`;
+
+      let q = supabase
+          .from('bookings')
+          .select('booking_date, start_time, end_time')
+          .eq('status', 'confirmed')
+          .gte('booking_date', from)
+          .lte('booking_date', to);
+
+      if (carModel && carModel !== 'all') {
+        q = q.eq('car_model', carModel);
+      }
+
+      const { data, error } = await q;
+      if (error) throw error;
+
+      const hours: DayCounts = {};
+      for (const row of data) {
+        const [sh, sm] = row.start_time.split(':').map(Number);
+        const [eh, em] = row.end_time.split(':').map(Number);
+        const duration = (eh * 60 + em - (sh * 60 + sm)) / 60;
+        hours[row.booking_date] = Math.round(((hours[row.booking_date] ?? 0) + duration) * 100) / 100;
+      }
+      return hours;
+    },
+    staleTime: 30_000,
   });
 }
 
@@ -109,7 +161,6 @@ export function useCreateBooking() {
           phone:        input.contact.phone,
         }),
       });
-
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? 'BOOKING_FAILED');
       return json.booking;
@@ -117,6 +168,7 @@ export function useCreateBooking() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['bookings'] });
       qc.invalidateQueries({ queryKey: ['my-bookings'] });
+      qc.invalidateQueries({ queryKey: ['monthly-counts'] });
     },
   });
 }
@@ -138,6 +190,7 @@ export function useCancelBooking() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['my-bookings'] });
       qc.invalidateQueries({ queryKey: ['bookings'] });
+      qc.invalidateQueries({ queryKey: ['monthly-counts'] });
     },
   });
 }

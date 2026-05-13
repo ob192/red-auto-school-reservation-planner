@@ -1,4 +1,9 @@
 import { Pool } from 'pg';
+import pg from 'pg';
+
+pg.types.setTypeParser(1082, (val: string) => val);   // date → "YYYY-MM-DD"
+pg.types.setTypeParser(1114, (val: string) => val);   // timestamp → string
+pg.types.setTypeParser(1184, (val: string) => val);   // timestamptz → string
 
 declare global {
   // eslint-disable-next-line no-var

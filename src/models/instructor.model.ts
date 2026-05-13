@@ -19,20 +19,23 @@ export interface InstructorBooking {
 export interface MonthSummary {
   month: string;
   bookings: InstructorBooking[];
-  total_hours: number;
+  total_hours: number;        // confirmed only
+  cancelled_hours: number;
 }
 
 export interface CarSummary {
   car_model: CarModel;
   car_name: string;
   months: MonthSummary[];
-  total_hours: number;
+  total_hours: number;        // confirmed only
+  cancelled_hours: number;
 }
 
 export interface InstructorSchedule {
   instructor: string;
   cars: CarSummary[];
-  grand_total_hours: number;
+  grand_total_hours: number;      // confirmed only
+  grand_cancelled_hours: number;
 }
 
 // ─── Raw DB row ───────────────────────────────────────────────────
@@ -41,7 +44,7 @@ interface RawRow {
   id: string;
   car_model: CarModel;
   car_name: string;
-  booking_date: string;
+  booking_date: string | Date;
   start_time: string;
   end_time: string;
   first_name: string;
@@ -57,8 +60,11 @@ function durationHours(start: string, end: string): number {
   return (eh * 60 + em - (sh * 60 + sm)) / 60;
 }
 
-function monthKey(dateStr: string): string {
-  return dateStr.slice(0, 7);
+function monthKey(dateStr: string | Date): string {
+  const s = dateStr instanceof Date
+      ? dateStr.toISOString().slice(0, 10)   // "2024-11-04T..." → "2024-11-04"
+      : dateStr;
+  return s.slice(0, 7);
 }
 
 // ─── Model functions ──────────────────────────────────────────────
@@ -89,14 +95,16 @@ export async function getInstructorSchedule(
   if (toDate)   { params.push(toDate);   dateFilters.push(`booking_date <= $${params.length}`); }
   const whereExtra = dateFilters.length ? ' AND ' + dateFilters.join(' AND ') : '';
 
+  // Use ILIKE instead of LOWER() = LOWER() — ILIKE is locale-independent
+  // and handles Cyrillic correctly on all Postgres installations.
   const rows = await query<RawRow>(
       `SELECT id, car_model, car_name, booking_date, start_time, end_time,
-              first_name, last_name, status
-       FROM bookings
-       WHERE LOWER(last_name)  = LOWER($1)
-         AND LOWER(first_name) = LOWER($2)
-         ${whereExtra}
-       ORDER BY car_model, booking_date, start_time`,
+            first_name, last_name, status
+     FROM bookings
+     WHERE last_name  ILIKE $1
+       AND first_name ILIKE $2
+       ${whereExtra}
+     ORDER BY car_model, booking_date, start_time`,
       params
   );
 
@@ -105,56 +113,76 @@ export async function getInstructorSchedule(
   const carMap = new Map<CarModel, Map<string, InstructorBooking[]>>();
 
   for (const row of rows) {
-    const car = CARS_REGISTRY[row.car_model]; // registry, no DB
-    const month = monthKey(row.booking_date);
+    const car = CARS_REGISTRY[row.car_model];
+    const rawDate = row.booking_date as unknown;
+    const bookingDate = rawDate instanceof Date
+        ? (rawDate as Date).toISOString().slice(0, 10)
+        : (rawDate as string).slice(0, 10);
+
+    const month = monthKey(bookingDate);
     const hours = durationHours(row.start_time, row.end_time);
 
     if (!carMap.has(row.car_model)) carMap.set(row.car_model, new Map());
     const monthMap = carMap.get(row.car_model)!;
     if (!monthMap.has(month)) monthMap.set(month, []);
     monthMap.get(month)!.push({
-      id: row.id,
-      car_model: row.car_model,
-      car_name: row.car_name,
-      car_color: car.color,
-      car_emoji: car.image_emoji,
-      booking_date: row.booking_date,
-      start_time: row.start_time,
-      end_time: row.end_time,
+      id:             row.id,
+      car_model:      row.car_model,
+      car_name:       row.car_name,
+      car_color:      car.color,
+      car_emoji:      car.image_emoji,
+      booking_date:   bookingDate,
+      start_time:     row.start_time,
+      end_time:       row.end_time,
       duration_hours: Math.round(hours * 100) / 100,
-      status: row.status,
+      status:         row.status,
     });
   }
 
   let grandTotal = 0;
+  let grandCancelled = 0;
   const cars: CarSummary[] = [];
 
-  // @ts-ignore
   for (const [carModel, monthMap] of carMap.entries()) {
-    // @ts-ignore
     const car = CARS_REGISTRY[carModel];
-    let carTotal = 0;
+    let carConfirmed = 0;
+    let carCancelled = 0;
     const months: MonthSummary[] = [];
 
     for (const [month, bookings] of [...monthMap.entries()].sort()) {
-      const monthTotal = bookings.reduce((s: any, b: { duration_hours: any; }) => s + b.duration_hours, 0);
-      carTotal += monthTotal;
-      months.push({ month, bookings, total_hours: Math.round(monthTotal * 100) / 100 });
+      const monthConfirmed = bookings
+          .filter(b => b.status === 'confirmed')
+          .reduce((s, b) => s + b.duration_hours, 0);
+      const monthCancelled = bookings
+          .filter(b => b.status === 'cancelled')
+          .reduce((s, b) => s + b.duration_hours, 0);
+
+      carConfirmed += monthConfirmed;
+      carCancelled += monthCancelled;
+      months.push({
+        month,
+        bookings,
+        total_hours:     Math.round(monthConfirmed * 100) / 100,
+        cancelled_hours: Math.round(monthCancelled * 100) / 100,
+      });
     }
 
-    grandTotal += carTotal;
+    grandTotal    += carConfirmed;
+    grandCancelled += carCancelled;
     cars.push({
-      car_model: carModel,
-      car_name: car.name,
+      car_model:       carModel,
+      car_name:        car.name,
       months,
-      total_hours: Math.round(carTotal * 100) / 100,
+      total_hours:     Math.round(carConfirmed * 100) / 100,
+      cancelled_hours: Math.round(carCancelled * 100) / 100,
     });
   }
 
   return {
-    instructor: `${lastName} ${firstName}`,
+    instructor:             `${lastName} ${firstName}`,
     cars,
-    grand_total_hours: Math.round(grandTotal * 100) / 100,
+    grand_total_hours:      Math.round(grandTotal    * 100) / 100,
+    grand_cancelled_hours:  Math.round(grandCancelled * 100) / 100,
   };
 }
 
@@ -167,25 +195,25 @@ export async function getAllInstructorBookings(fromDate?: string, toDate?: strin
 
   const rows = await query<RawRow>(
       `SELECT id, car_model, car_name, booking_date, start_time, end_time,
-            first_name, last_name, status
-     FROM bookings
-     ${whereClause}
-     ORDER BY last_name, first_name, car_model, booking_date, start_time`,
+              first_name, last_name, status
+       FROM bookings
+              ${whereClause}
+       ORDER BY last_name, first_name, car_model, booking_date, start_time`,
       params
   );
 
   return rows.map((row) => {
     const car = CARS_REGISTRY[row.car_model];
     return {
-      instructor: `${row.last_name} ${row.first_name}`,
-      car_model: row.car_model,
-      car_name: row.car_name,
-      car_color: car.color,
-      booking_date: row.booking_date,
-      start_time: row.start_time,
-      end_time: row.end_time,
+      instructor:     `${row.last_name} ${row.first_name}`,
+      car_model:      row.car_model,
+      car_name:       row.car_name,
+      car_color:      car.color,
+      booking_date:   row.booking_date,
+      start_time:     row.start_time,
+      end_time:       row.end_time,
       duration_hours: Math.round(durationHours(row.start_time, row.end_time) * 100) / 100,
-      status: row.status,
+      status:         row.status,
     };
   });
 }
