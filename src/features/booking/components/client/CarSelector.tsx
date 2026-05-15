@@ -7,17 +7,17 @@ import { useBookingStore } from '@/features/booking/store/bookingStore';
 const cars = getAllCars(); // static, computed once at module load
 
 const CAR_GRADIENTS: Record<string, string> = {
-  'MAZDA':       'linear-gradient(135deg, #e53e3e 0%, #c53030 100%)',
-  'KIA RIO':     'linear-gradient(135deg, #3182ce 0%, #2b6cb0 100%)',
-  'TOYOTA':      'linear-gradient(135deg, #2d3748 0%, #1a202c 100%)',
-  'MINI COOPER': 'linear-gradient(135deg, #d69e2e 0%, #b7791f 100%)',
+    'MINI COOPER': 'linear-gradient(135deg, #e53e3e 0%, #c53030 100%)', // red
+    'MAZDA':       'linear-gradient(135deg, #4a5568 0%, #2d3748 100%)', // dark grey
+    'KIA RIO':     'linear-gradient(135deg, #a0998a 0%, #7d7567 100%)', // grey-beige
+    'TOYOTA':      'linear-gradient(135deg, #a0aec0 0%, #718096 100%)', // grey
 };
 
 const CAR_DESCRIPTIONS: Record<string, string> = {
-  'MAZDA':       'Спортивний седан · Механіка 6-ступ.',
-  'KIA RIO':     'Економічний хетчбек · Автомат',
-  'TOYOTA':      'Комфортний бізнес-клас · Автомат',
-  'MINI COOPER': 'Преміум хетчбек · Автомат',
+    'MINI COOPER': 'Преміум хетчбек · Автомат',
+    'MAZDA':       'Спортивний седан · Автомат',        // was: Механіка 6-ступ.
+    'KIA RIO':     'Економічний хетчбек · Механіка',   // was: Автомат
+    'TOYOTA':      'Комфортний бізнес-клас · Механіка', // was: Автомат
 };
 
 export function CarSelector() {

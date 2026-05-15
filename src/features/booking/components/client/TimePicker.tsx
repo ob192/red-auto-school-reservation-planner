@@ -141,8 +141,6 @@ export function TimePicker() {
   const handleConfirm = () => {
     setError('');
     if (startMins >= endMins) { setError('Час завершення має бути після початку.'); return; }
-    if (durationMins < 30)    { setError('Мінімальна тривалість — 30 хвилин.'); return; }
-    if (durationMins > 240)   { setError('Максимальна тривалість — 4 години.'); return; }
     if (conflictingBooking)   {
       setError(
           `Перетин з ${formatHHMM(conflictingBooking.start_time)}–${formatHHMM(conflictingBooking.end_time)} ` +
